@@ -7,7 +7,6 @@ announce = "\033[95mdnstrace\033[0m:"
 global host_address
 host_address = requests.get("https://ipv4.icanhazip.com/")
 host_address = host_address.text.strip()
-
 def loading_anim():
     loading_symbols = ["⣾","⣽","⣻","⢿","⡿","⣟","⣯","⣷"]
     idx = 0
@@ -36,19 +35,50 @@ def get_dns(ip_address):
     except socket.herror:
         return "No DNS Found"
 
-def print_info(json_format):
+def json_print_info(json_format,strenbar,arg_map):
     if target_ip[0].isdigit():
         dns_name = get_dns(target_ip)
     else:
         dns_name = json_format['query']
-    dns_string = f" {target_ip} | {dns_name}"
+    dns_string = f"{target_ip} | {dns_name}"
+    global dns_uline
     dns_uline = (len(dns_string) * "-")
+    if json_format['mobile']:
+        mobile_check = "\033[92m✓"
+    else:
+        mobile_check = "\033[91m✗"
+
+    if json_format['proxy']:
+        proxy_check = "\033[92m✓"
+    else:
+        proxy_check = "\033[91m✗"
+    
+    if json_format['hosting']:
+        host_check = "\033[92m✓"
+    else:
+        host_check = "\033[91m✗"
+
+    total_padding = len(dns_uline) - len(strenbar)
+
+    timezone_string = (json_format['timezone'][json_format['timezone'].find('/') + 1:]).replace("_"," ")
     print(f"""
         \033[95m{target_ip} \033[90m| \033[95m{dns_name}
         \033[90m{dns_uline}
+        \033[37mCountry{abs((len('country') + len(json_format['country']) - len(dns_string))) * " "}\033[97m{json_format['country']}
+        \033[37mRegion{abs((len('region') + len(json_format['regionName']) - len(dns_string))) * " "}\033[97m{json_format['regionName']}
+        \033[37mCity{abs((len('city') + len(json_format['city']) - len(dns_string))) * " "}\033[97m{json_format['city']}
+        \033[37mTimezone {abs((len('timezone') + len(timezone_string) - len(dns_string))+1) * " "}\033[97m{timezone_string}
+        \033[37mZipcode{abs((len('zipcode') + len(json_format['zip']) - len(dns_string))) * " "}\033[97m{json_format['zip']}
+        \033[37mISP.{abs((len('ISP.') + len(json_format['isp']) - len(dns_string))) * " "}\033[97m{json_format['isp']}
+        \033[37mORG.{abs((len('ORG.') + len(json_format['isp']) - len(dns_string))) * " "}\033[97m{json_format['org']}
+        \033[37mMobile{abs((len('mobile') + len('s') - len(dns_string))) * " "}\033[97m{mobile_check}
+        \033[37mProxy{abs((len('Proxy') + len('s') - len(dns_string))) * " "}\033[97m{proxy_check}
+        \033[37mHosting{abs((len('hosting') + len('s') - len(dns_string))) * " "}\033[97m{host_check}
 
+        \033[90m{dns_uline}
+        {strenbar}
 
-          \033[0m""")
+        \033[0m""")
 def get_score(ip_address, host_address, packets):
     if not host_address:
         try:
@@ -108,7 +138,9 @@ def get_strenght(score_dict):
     score -= (score_dict['avg_latency'] * 2)
     def get_visual(score):
         visual = ""
-        out_of = 10
+        out_of = 10 
+        if score <= 0:
+            return "████████████████████"
         scalable_score = int(score / 10)
         remainder = abs(scalable_score - out_of)
         if scalable_score >= 8:
@@ -125,10 +157,12 @@ def get_strenght(score_dict):
             visual += "\033[0m"
         return visual
     visual = get_visual(score)
-    print(visual, int(score), "%")
-    return max(score, 0)
+    if score <= 0:
+        score = 0
+    return f"{visual} {int(score)}%"
 
 def scrape_args(list_args):
+    all_args = ['-ps','-sf','-put','xml','json','csv','newline','help']
     arg_map = {
             "paksize": 1,
             "sendfrom": host_address,
@@ -137,8 +171,8 @@ def scrape_args(list_args):
             }
 
     # take care of the packet size arguement
-    if "ps" in list_args:
-        paksize_arg = list_args.index("ps")
+    if "-ps" in list_args:
+        paksize_arg = list_args.index("-ps")
         if paksize_arg+1 >= len(list_args):
             print(announce,"Arguement defined, but no packetsize was provided")
             exit(1)
@@ -150,8 +184,8 @@ def scrape_args(list_args):
         list_args.pop(paksize_arg)
         list_args.pop(list_args.index(paketsize))
     # take care of send from arguement
-    if "sf" in list_args:
-        sendfrom_arg = list_args.index("sf")
+    if "-sf" in list_args:
+        sendfrom_arg = list_args.index("-sf")
         if sendfrom_arg+1 >= len(list_args):
             print(announce, "Arguement was defined, but no IP/DNS was provided")
             exit(1)
@@ -164,8 +198,8 @@ def scrape_args(list_args):
         list_args.pop(sendfrom_arg)
         list_args.pop(list_args.index(sendfromloc))
     # take care of put arg
-    if "put" in list_args:
-        put_arg = list_args.index("put")
+    if "-put" in list_args:
+        put_arg = list_args.index("-put")
         if put_arg+1 >= len(list_args):
             print(announce,"Arguement was defined, but no FILE PATH was provided")
             exit(1)
@@ -184,13 +218,49 @@ def scrape_args(list_args):
     # now we clean up the args
     if list_args[2:]:
         left_overs = ", ".join(list_args[2:])
-        print(announce,f"Unrecognized Args '\033[90m{left_overs}'\033[0m")
+    possible_args = []
+    pos = ""
+    for arg in list_args[2:]:
+        for args in all_args:
+            if arg[0:2] == args[0:2]:
+                possible_args.append(args)
+    if len(possible_args) > 1:
+        pos = ", ".join(possible_args)
+    print(announce,f"Unrecognized Args '\033[90m{left_overs}\033[0m'")
+    if len(possible_args) > 1:
+        print(announce,f"Similiar Args Recognized '\033[90m{pos}\033[0m'")
+        exit(1)
+
+
     return arg_map
 
 def connected():
     if host_address:
         return True
     return False
+
+def help_me():
+    print(f"""
+    \033[95mdnstrace\033[0m - A superiour solution to the outdated nslookup
+
+    USAGE: dnstrace <IP/DNS> [ARGS IN ANY ORDER] [ARG VALUE]
+    ---
+    -ps       alter the packet size, default = 1. larger packets = larger loadtime
+    -sf       send from ip, sort of like a proxy. default = {host_address} (this is your IP)
+    -put      can output your data into a given file
+    -raw      get the raw data, and not the formatted wrapper
+    (style)   can format data into different styles [json, xml, cvs, newline]
+    ---
+
+    {announce} https://www.github.com/sjapanwala
+    {announce} Maintainers:
+        Saaim Japanwala - 2024-11-01
+
+
+    License: MIT
+          """)
+    exit()
+
 
 
 def main():
@@ -205,9 +275,7 @@ def main():
         reserves x+1 for the putfile
     (type) -> optional choices (json,xml,csv,newline) (if not given, will default to json)
 
-    -
     """
-
     if not connected():
         print(announce, "not connected to a stable network")
         exit(1)
@@ -215,6 +283,8 @@ def main():
         print(announce, "IP arguement has not been provided")
         exit(1)
     global target_ip
+    if sys.argv[1] == 'help':
+        help_me()
     target_ip = sys.argv[1]
     if not validate_address(target_ip):
         print(announce, "an invalid IP address was provided")
@@ -227,14 +297,14 @@ def main():
     # this is where the working should happen
     ip_information = get_inf(target_ip)
     dictio = get_score(target_ip,arg_map['sendfrom'],arg_map['paksize'])
+    strenbar = get_strenght(dictio)
     loading_done[0] = True
     loading_thread.join()
     sys.stdout.write("\r" + " " * 50 + "\r")
     sys.stdout.flush()
     # now this is where the outputs should take place
-    print_info(ip_information)
-    print(ip_information)
-    get_strenght(dictio)
+    if arg_map['type'] == "json":
+        json_print_info(ip_information,strenbar,arg_map)
 
 if __name__ == "__main__":
     main()
