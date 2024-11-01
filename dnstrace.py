@@ -110,11 +110,11 @@ def get_score(ip_address, host_address, packets):
         output = response.stdout
         lines = output.splitlines()
 
-        packet_loss_line = [line for line in lines if 'packet loss' in line]
-        if packet_loss_line:
-            packet_loss = int(packet_loss_line[0].split('%')[0].split()[-1])
-        else:
-            packet_loss = None 
+        #packet_loss_line = [line for line in lines if 'packet loss' in line]
+        #if packet_loss_line:
+        #    packet_loss = int(packet_loss_line[0].split('%')[0].split()[-1])
+        #else:
+        #    packet_loss = None 
 
         avg_latency_line = [line for line in lines if 'avg' in line]
         if avg_latency_line:
@@ -124,7 +124,7 @@ def get_score(ip_address, host_address, packets):
         end = time.time()
         #print(end - start)
         return {
-            'packet_loss': packet_loss,
+                # 'packet_loss': packet_loss,
             'avg_latency': avg_latency,
         }
     else:
@@ -134,7 +134,7 @@ def get_score(ip_address, host_address, packets):
 
 def get_strenght(score_dict):
     score = 100
-    score -= score_dict['packet_loss'] * 2
+    #score -= score_dict['packet_loss'] * 2
     score -= (score_dict['avg_latency'] * 2)
     def get_visual(score):
         visual = ""
