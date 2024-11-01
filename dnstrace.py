@@ -218,18 +218,18 @@ def scrape_args(list_args):
     # now we clean up the args
     if list_args[2:]:
         left_overs = ", ".join(list_args[2:])
-    possible_args = []
-    pos = ""
-    for arg in list_args[2:]:
-        for args in all_args:
-            if arg[0:2] == args[0:2]:
-                possible_args.append(args)
-    if len(possible_args) > 1:
-        pos = ", ".join(possible_args)
-    print(announce,f"Unrecognized Args '\033[90m{left_overs}\033[0m'")
-    if len(possible_args) > 1:
-        print(announce,f"Similiar Args Recognized '\033[90m{pos}\033[0m'")
-        exit(1)
+        possible_args = []
+        pos = ""
+        for arg in list_args[2:]:
+            for args in all_args:
+                if arg[0:2] == args[0:2]:
+                    possible_args.append(args)
+        if len(possible_args) > 1:
+            pos = ", ".join(possible_args)
+        print(announce,f"Unrecognized Args '\033[90m{left_overs}\033[0m'")
+        if len(possible_args) > 1:
+            print(announce,f"Similiar Args Recognized '\033[90m{pos}\033[0m'")
+            exit(1)
 
 
     return arg_map
